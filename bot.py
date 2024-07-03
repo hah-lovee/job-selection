@@ -81,9 +81,12 @@ def schedule(update: Update, context: CallbackContext) -> int:
         schedule = context.user_data['schedule']
         
         # Выполняем поиск вакансий с использованием переданных параметров
-        vacancies = fetch_vacancies(title, salary, experience, city, schedule)
+        vacancies = fetch_vacancies(title, salary, experience, city, schedule, 0)
+        context.user_data['vacancies'] = vacancies
+        context.user_data['current_page'] = 0
         if vacancies:
-            response_text = "Вот несколько найденных вакансий:\n\n" + "\n".join(vacancies)
+            response_text = "Вот несколько найденных вакансий:\n\n" + "\n".join(vacancies[:5])
+            response_text += "\n\nИспользуйте команду /more_jobs, чтобы увидеть больше вакансий."
         else:
             response_text = "К сожалению, вакансий по заданным критериям не найдено."
         
@@ -105,7 +108,7 @@ def get_city_id(city_name):
             return areas[0].get('id')
     return None
 
-def fetch_vacancies(title, salary, experience, city, schedule):
+def fetch_vacancies(title, salary, experience, city, schedule, page):
     url = 'https://api.hh.ru/vacancies'
     headers = {'User-Agent': 'YourAppName/1.0'}
     experience_mapping = {
@@ -134,7 +137,8 @@ def fetch_vacancies(title, salary, experience, city, schedule):
         'experience': experience_id,
         'area': city_id,
         'schedule': schedule_id,
-        'per_page': 5
+        'per_page': 5,
+        'page': page
     }
 
     logger.info(f"Fetching vacancies with params: {params}")
@@ -165,6 +169,26 @@ def fetch_vacancies(title, salary, experience, city, schedule):
         logger.error(f"Failed to fetch data from API. Status code: {response.status_code}, Response: {response.text}")
         return []
 
+def more_jobs(update: Update, context: CallbackContext) -> None:
+    current_page = context.user_data.get('current_page', 0) + 1
+    context.user_data['current_page'] = current_page
+
+    title = context.user_data['title']
+    salary = context.user_data['salary']
+    experience = context.user_data['experience']
+    city = context.user_data['city']
+    schedule = context.user_data['schedule']
+
+    more_vacancies = fetch_vacancies(title, salary, experience, city, schedule, current_page)
+    if more_vacancies:
+        context.user_data['vacancies'].extend(more_vacancies)
+        response_text = "\n".join(more_vacancies)
+        response_text += "\n\nИспользуйте команду /more_jobs, чтобы увидеть больше вакансий."
+    else:
+        response_text = "Больше вакансий не найдено."
+
+    update.message.reply_text(response_text)
+
 def main():
     updater = Updater(TOKEN, use_context=True)
 
@@ -184,6 +208,7 @@ def main():
 
     dp.add_handler(conv_handler)
     dp.add_handler(CommandHandler('start', start))
+    dp.add_handler(CommandHandler('more_jobs', more_jobs))
 
     updater.start_polling()
     updater.idle()
