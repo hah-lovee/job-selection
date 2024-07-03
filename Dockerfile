@@ -2,6 +2,8 @@
 FROM python:3.9-slim
 
 # Установка зависимостей
+RUN pip install python-dotenv
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        postgresql-client \

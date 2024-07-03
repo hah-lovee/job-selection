@@ -2,6 +2,10 @@ import os
 import psycopg2
 import requests
 import sys
+import re
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 POSTGRES_URL = "postgresql://user:password@db:5432/postgres"
@@ -38,6 +42,8 @@ def create_table():
             salary_from INTEGER,
             salary_to INTEGER,
             currency TEXT,
+            city TEXT,
+            schedule TEXT,
             published_at TIMESTAMP
         )
         ''')
@@ -47,7 +53,7 @@ def create_table():
     except psycopg2.Error as e:
         print(f"Error creating table: {e}")
 
-def fetch_vacancies(title, salary, experience):
+def fetch_vacancies(title, salary, experience, city, schedule):
     try:
         conn = psycopg2.connect(DATABASE_URL)
         conn.autocommit = True
@@ -61,13 +67,22 @@ def fetch_vacancies(title, salary, experience):
             "От 3 до 5 лет": "between3And6",
             "Более 5 лет": "moreThan6"
         }
+        schedule_mapping = {
+            "Полный рабочий день": "fullDay",
+            "Сменный график": "shift",
+            "Гибкий график": "flexible",
+            "Удаленная работа": "remote"
+        }
         experience_id = experience_mapping.get(experience, "noExperience")
+        schedule_id = schedule_mapping.get(schedule, "fullDay")
 
         salary_from, salary_to = re.findall(r'\d+', salary)
         params = {
             'text': title,
             'salary': (int(salary_from) + int(salary_to)) // 2,
             'experience': experience_id,
+            'area': city,
+            'schedule': schedule_id,
             'per_page': 5
         }
 
@@ -83,12 +98,14 @@ def fetch_vacancies(title, salary, experience):
                 salary_from = vacancy.get('salary', {}).get('from')
                 salary_to = vacancy.get('salary', {}).get('to')
                 currency = vacancy.get('salary', {}).get('currency')
+                city = vacancy.get('area', {}).get('name')
+                schedule = vacancy.get('schedule', {}).get('name')
                 published_at = vacancy.get('published_at')
 
                 cursor.execute('''
-                    INSERT INTO vacancies (vacancy_id, name, employer_name, experience, salary_from, salary_to, currency, published_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ''', (vacancy_id, name, employer_name, experience, salary_from, salary_to, currency, published_at))
+                    INSERT INTO vacancies (vacancy_id, name, employer_name, experience, salary_from, salary_to, currency, city, schedule, published_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', (vacancy_id, name, employer_name, experience, salary_from, salary_to, currency, city, schedule, published_at))
 
             print("Data successfully inserted into PostgreSQL")
         else:
@@ -103,14 +120,16 @@ def fetch_vacancies(title, salary, experience):
             conn.close()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        print("Usage: python parser.py <title> <salary> <experience>")
+    if len(sys.argv) < 6:
+        print("Usage: python parser.py <title> <salary> <experience> <city> <schedule>")
         sys.exit(1)
 
     title = sys.argv[1]
     salary = sys.argv[2]
     experience = sys.argv[3]
+    city = sys.argv[4]
+    schedule = sys.argv[5]
 
     create_database()
     create_table()
-    fetch_vacancies(title, salary, experience)
+    fetch_vacancies(title, salary, experience, city, schedule)
