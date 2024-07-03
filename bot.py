@@ -20,7 +20,8 @@ def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
         'Привет! Я бот по подбору вакансий на hh.ru.\n'
         'Я могу помочь вам найти работу по заданным критериям.\n'
-        'Используйте команду /job_selection, чтобы начать подбор вакансий.'
+        'Используйте команду /job_selection, чтобы начать подбор вакансий.\n'
+        'Используйте команду /more_jobs для продолжения поисков'
     )
 
 def job_selection(update: Update, context: CallbackContext) -> int:
@@ -85,7 +86,7 @@ def schedule(update: Update, context: CallbackContext) -> int:
         context.user_data['vacancies'] = vacancies
         context.user_data['current_page'] = 0
         if vacancies:
-            response_text = "Вот несколько найденных вакансий:\n\n" + "\n".join(vacancies[:5])
+            response_text = "Вот несколько найденных вакансий:\n\n" + "\n\n".join(vacancies[:5])
             response_text += "\n\nИспользуйте команду /more_jobs, чтобы увидеть больше вакансий."
         else:
             response_text = "К сожалению, вакансий по заданным критериям не найдено."
@@ -182,7 +183,7 @@ def more_jobs(update: Update, context: CallbackContext) -> None:
     more_vacancies = fetch_vacancies(title, salary, experience, city, schedule, current_page)
     if more_vacancies:
         context.user_data['vacancies'].extend(more_vacancies)
-        response_text = "\n".join(more_vacancies)
+        response_text = "\n\n".join(more_vacancies)
         response_text += "\n\nИспользуйте команду /more_jobs, чтобы увидеть больше вакансий."
     else:
         response_text = "Больше вакансий не найдено."
