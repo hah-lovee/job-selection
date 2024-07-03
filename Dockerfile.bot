@@ -1,0 +1,19 @@
+# Используем образ Python
+FROM python:3.9-slim
+
+# Устанавливаем зависимости, включая конкретную версию python-telegram-bot и python-dotenv
+RUN pip install python-telegram-bot==13.8 requests psycopg2-binary python-dotenv
+
+# Копируем исходный код бота и парсера в контейнер
+COPY bot.py /app/bot.py
+COPY parser.py /app/parser.py
+COPY .env /app/.env
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Задаем переменную окружения для подключения к базе данных
+ENV DATABASE_URL=postgresql://user:password@db:5432/vacancies_db
+
+# Запускаем бота
+CMD ["python", "bot.py"]
